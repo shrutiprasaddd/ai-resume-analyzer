@@ -4,6 +4,7 @@ const multer = require("multer");
 const pdfParse = require("pdf-parse");
 const fs = require("fs");
 const axios = require("axios");
+const path = require("path");
 require("dotenv").config();
 
 const app = express();
@@ -12,11 +13,6 @@ app.use(express.json());
 
 // File upload setup
 const upload = multer({ dest: "uploads/" });
-
-// Test route
-app.get("/", (req, res) => {
-  res.send("Server running");
-});
 
 // MAIN ANALYZE ROUTE
 app.post("/analyze", upload.single("resume"), async (req, res) => {
@@ -31,7 +27,6 @@ app.post("/analyze", upload.single("resume"), async (req, res) => {
 
     const jobRole = req.body.role || "Software Developer";
 
-    // 🔥 STRONG PROMPT (forces JSON)
     const prompt = `
 You are a resume analyzer AI.
 
@@ -67,12 +62,12 @@ ${pdfData.text}
           Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
           "Content-Type": "application/json",
         },
-      }
+      },
     );
 
     let aiText = response.data.choices[0].message.content;
 
-    // 🔥 CLEAN AI RESPONSE (remove ```json ``` issues)
+    // Clean AI response
     aiText = aiText
       .replace(/```json/g, "")
       .replace(/```/g, "")
@@ -85,7 +80,7 @@ ${pdfData.text}
     } catch (err) {
       console.log("❌ JSON parse failed");
       console.log("RAW AI RESPONSE:", aiText);
-      return res.json({ result: aiText }); // fallback
+      return res.json({ result: aiText });
     }
 
     res.json(parsed);
@@ -93,6 +88,14 @@ ${pdfData.text}
     console.log("SERVER ERROR:", err.message);
     res.status(500).json({ error: "Something went wrong" });
   }
+});
+
+// ✅ SERVE REACT BUILD (FIXED FOR EXPRESS v5)
+
+app.use(express.static(path.join(__dirname, "../client/build")));
+
+app.use((req, res) => {
+  res.sendFile(path.join(__dirname, "../client/build/index.html"));
 });
 
 // Start server
