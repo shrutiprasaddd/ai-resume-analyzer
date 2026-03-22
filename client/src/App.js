@@ -1,12 +1,27 @@
 import { useState } from "react";
 import axios from "axios";
+import Login from "./Login";
+import Register from "./Register";
+import Dashboard from "./Dashboard";
 import "./App.css";
 
 function App() {
+  const [token, setToken] = useState(localStorage.getItem("token"));
+  const [page, setPage] = useState(
+    localStorage.getItem("token") ? "analyze" : "login",
+  );
+
   const [file, setFile] = useState(null);
   const [role, setRole] = useState("");
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
+
+  const logout = () => {
+    localStorage.removeItem("token");
+    setToken(null);
+    setPage("login");
+    setData(null);
+  };
 
   const handleSubmit = async () => {
     if (!file || !role) {
@@ -21,89 +36,150 @@ function App() {
       formData.append("resume", file);
       formData.append("role", role);
 
-      const res = await axios.post("/analyze", formData);
+      const res = await axios.post("/analyze", formData, {
+        headers: {
+          Authorization: localStorage.getItem("token"),
+        },
+      });
 
       setData(res.data);
+
+      // ✅ UX IMPROVEMENT: reset inputs after analysis
+      setFile(null);
+      setRole("");
     } catch (err) {
-      alert("Something went wrong 😢");
+      alert(err.response?.data?.error || "Something went wrong 😢");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="app">
-      <h1>🚀 AI Resume Analyzer</h1>
+    <>
+      {/* HEADER */}
+      <header className="header">
+        <h2>🚀 AI Resume Analyzer</h2>
 
-      <div className="card input-card">
-        <label className="file-upload">
-          <input type="file" onChange={(e) => setFile(e.target.files[0])} />
-          <span>{file ? `✅ ${file.name}` : "📄 Drag & Upload Resume"}</span>
-        </label>
+        <div className="nav">
+          {!token && page !== "login" && (
+            <button onClick={() => setPage("login")}>Login</button>
+          )}
 
-        <input
-          type="text"
-          placeholder="Enter Job Role (e.g. Frontend Developer)"
-          value={role}
-          onChange={(e) => setRole(e.target.value)}
-        />
+          {!token && page !== "register" && (
+            <button onClick={() => setPage("register")}>Register</button>
+          )}
 
-        <button onClick={handleSubmit} disabled={loading}>
-          {loading ? "⏳ Analyzing..." : "Analyze"}
-        </button>
+          {token && (
+            <>
+              <button
+                onClick={() => {
+                  setPage("analyze");
+                  setData(null);
+                  setFile(null);
+                  setRole("");
+                }}
+              >
+                Analyze
+              </button>
+
+              <button onClick={() => setPage("dashboard")}>Dashboard</button>
+
+              <button onClick={logout}>Logout</button>
+            </>
+          )}
+        </div>
+      </header>
+
+      {/* MAIN */}
+      <div className="app">
+        {/* AUTH */}
+        {!token && page === "login" && (
+          <Login setToken={setToken} setPage={setPage} />
+        )}
+
+        {!token && page === "register" && <Register setPage={setPage} />}
+
+        {/* ANALYZE */}
+        {token && page === "analyze" && (
+          <>
+            <div className="card input-card">
+              <label className="file-upload">
+                <input
+                  type="file"
+                  onChange={(e) => setFile(e.target.files[0])}
+                />
+                <span>{file ? `✅ ${file.name}` : "📄 Upload Resume"}</span>
+              </label>
+
+              <input
+                type="text"
+                placeholder="Enter Job Role (e.g. DevOps Engineer)"
+                value={role}
+                onChange={(e) => setRole(e.target.value)}
+              />
+
+              <button
+                onClick={handleSubmit}
+                disabled={loading || !file || !role} // ✅ prevent empty submit
+              >
+                {loading ? "⏳ Analyzing..." : "Analyze Resume"}
+              </button>
+            </div>
+
+            {/* RESULT */}
+            {data && (
+              <div className="card result-card">
+                <h2>📊 Resume Analysis</h2>
+
+                <div className="result-block">
+                  <h3>⭐ Score</h3>
+                  <p className="score">{data.score ?? "0"}/100</p>
+                </div>
+
+                <div className="result-block">
+                  <h3>🧠 Summary</h3>
+                  <p>{data.summary || "No summary generated"}</p>
+                </div>
+
+                <div className="result-block">
+                  <h3>❌ Missing Skills</h3>
+                  {data.missing_skills?.length ? (
+                    <ul>
+                      {data.missing_skills.map((s, i) => (
+                        <li key={i}>{s}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p>None 🎉</p>
+                  )}
+                </div>
+
+                <div className="result-block">
+                  <h3>💡 Suggestions</h3>
+                  {data.suggestions?.length ? (
+                    <ul>
+                      {data.suggestions.map((s, i) => (
+                        <li key={i}>{s}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p>Looks good 👍</p>
+                  )}
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* DASHBOARD */}
+        {token && page === "dashboard" && <Dashboard data={data} />}
       </div>
 
-      {data && (
-        <div className="card result-card">
-          <h2>📊 Analysis Result</h2>
-
-          {/* Score */}
-          <div className="score-section">
-            <h3>Score: {data.score || 0}/100</h3>
-            <div className="progress-bar">
-              <div
-                className="progress-fill"
-                style={{ width: `${data.score || 0}%` }}
-              ></div>
-            </div>
-          </div>
-
-          {/* Missing Skills */}
-          <div className="section">
-            <h3>❌ Missing Skills</h3>
-            {data?.missing_skills?.length ? (
-              <ul>
-                {data.missing_skills.map((skill, i) => (
-                  <li key={i}>{skill}</li>
-                ))}
-              </ul>
-            ) : (
-              <p className="success">No major missing skills 🎉</p>
-            )}
-          </div>
-
-          {/* Suggestions */}
-          <div className="section">
-            <h3>💡 Suggestions</h3>
-            {data?.suggestions?.length ? (
-              <ul>
-                {data.suggestions.map((s, i) => (
-                  <li key={i}>{s}</li>
-                ))}
-              </ul>
-            ) : (
-              <p className="success">Resume looks strong 💪</p>
-            )}
-          </div>
-
-          {/* Summary */}
-          <div className="section">
-            <h3>📄 Improved Summary</h3>
-            <p>{data.summary}</p>
-          </div>
-        </div>
-      )}
-    </div>
+      {/* FOOTER */}
+      <footer className="footer">
+        <p>© 2026 AI Resume Analyzer</p>
+      </footer>
+    </>
   );
 }
 
