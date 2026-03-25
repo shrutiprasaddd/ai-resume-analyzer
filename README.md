@@ -74,6 +74,7 @@ An AI-powered full-stack web application that analyzes resumes and provides acti
 ## 🔐 Environment Variables
 
 Create a `.env` file in the `/server` folder:
+
 OPENAI_API_KEY=your_api_key_here
 
 ---
