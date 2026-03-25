@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 
+const API = "https://ai-resume-analyzer-qyi6.onrender.com";
+
 function Login({ setToken, setPage }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -13,12 +15,10 @@ function Login({ setToken, setPage }) {
 
   const login = async () => {
     try {
-      const res = await axios.post("http://localhost:5000/api/auth/login", {
+      const res = await axios.post(`${API}/api/auth/login`, {
         email,
         password,
       });
-
-      console.log("LOGIN RESPONSE:", res.data); // 👈 ADD THIS
 
       if (!res.data.token) {
         alert("No token received from server");
@@ -29,7 +29,7 @@ function Login({ setToken, setPage }) {
       setToken(res.data.token);
       setPage("analyze");
     } catch (err) {
-      console.log("LOGIN ERROR:", err.response?.data || err.message); // 👈 ADD THIS
+      console.log("LOGIN ERROR:", err.response?.data || err.message);
       alert("Login failed");
     }
   };
@@ -50,7 +50,6 @@ function Login({ setToken, setPage }) {
         Login
       </button>
 
-      {/* 👇 NOW THIS WILL SHOW */}
       <p className="auth-switch">
         Don’t have an account?{" "}
         <span onClick={() => setPage("register")}>Register</span>

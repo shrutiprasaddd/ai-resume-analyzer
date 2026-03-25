@@ -1,6 +1,8 @@
 import { useState } from "react";
 import axios from "axios";
 
+const API = "https://ai-resume-analyzer-qyi6.onrender.com";
+
 function Register({ setPage }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -8,16 +10,16 @@ function Register({ setPage }) {
 
   const register = async () => {
     try {
-      await axios.post("/api/auth/register", {
+      await axios.post(`${API}/api/auth/register`, {
         name,
         email,
         password,
       });
 
       alert("✅ Registered successfully! Please login.");
-
-      setPage("login"); // ✅ auto switch
+      setPage("login");
     } catch (err) {
+      console.log("REGISTER ERROR:", err.response?.data || err.message);
       alert("Registration failed");
     }
   };
@@ -27,9 +29,7 @@ function Register({ setPage }) {
       <h2>Register</h2>
 
       <input placeholder="Name" onChange={(e) => setName(e.target.value)} />
-
       <input placeholder="Email" onChange={(e) => setEmail(e.target.value)} />
-
       <input
         type="password"
         placeholder="Password"
