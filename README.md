@@ -25,7 +25,7 @@ An AI-powered full-stack web application that analyzes resumes and provides acti
 ## 📸 Screenshots
 
 ### 🔐 Login / Register Page
-![Login UI](./login-ui.png)
+![Register UI](./register-ui.png)
 
 ### 📄 Upload Resume Page
 ![Upload UI](./upload-ui.png)
