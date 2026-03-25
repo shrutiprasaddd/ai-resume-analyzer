@@ -1,52 +1,61 @@
-function Dashboard({ data }) {
-  if (!data) {
-    return (
-      <div className="card">
-        <h2>📊 Dashboard</h2>
-        <p>No analysis yet. Go to Analyze and upload a resume 🚀</p>
-      </div>
-    );
-  }
+import { useEffect, useState } from "react";
+import axios from "axios";
+
+function Dashboard({ token }) {
+  const [history, setHistory] = useState([]);
+
+  useEffect(() => {
+    axios
+      .get("/api/history", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+      .then((res) => setHistory(res.data))
+      .catch((err) => console.log(err));
+  }, [token]);
 
   return (
     <div className="card">
       <h2>📊 Dashboard</h2>
 
-      <div className="result-block">
-        <h3>⭐ Score</h3>
-        <p className="score">{data.score}/100</p>
-      </div>
+      {history.length === 0 ? (
+        <p>No analysis yet. Upload a resume 🚀</p>
+      ) : (
+        history.map((item, index) => (
+          <div key={index} className="result-block">
+            <h3>🎯 Role: {item.role}</h3>
 
-      <div className="result-block">
-        <h3>🧠 Summary</h3>
-        <p>{data.summary}</p>
-      </div>
+            <p>
+              <strong>⭐ Score:</strong> {item.score}/100
+            </p>
 
-      <div className="result-block">
-        <h3>❌ Missing Skills</h3>
-        {data.missing_skills?.length ? (
-          <ul>
-            {data.missing_skills.map((s, i) => (
-              <li key={i}>{s}</li>
-            ))}
-          </ul>
-        ) : (
-          <p>None 🎉</p>
-        )}
-      </div>
+            <p>
+              <strong>🧠 Summary:</strong> {item.summary}
+            </p>
 
-      <div className="result-block">
-        <h3>💡 Suggestions</h3>
-        {data.suggestions?.length ? (
-          <ul>
-            {data.suggestions.map((s, i) => (
-              <li key={i}>{s}</li>
-            ))}
-          </ul>
-        ) : (
-          <p>Looks good 👍</p>
-        )}
-      </div>
+            <div>
+              <strong>❌ Missing Skills:</strong>
+              <ul>
+                {item.missing_skills?.map((s, i) => (
+                  <li key={i}>{s}</li>
+                ))}
+              </ul>
+            </div>
+
+            <div>
+              <strong>💡 Suggestions:</strong>
+              <ul>
+                {item.suggestions?.map((s, i) => (
+                  <li key={i}>{s}</li>
+                ))}
+              </ul>
+            </div>
+
+            <hr />
+          </div>
+        ))
+      )}
     </div>
   );
 }

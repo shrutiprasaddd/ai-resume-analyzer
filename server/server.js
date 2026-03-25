@@ -1,6 +1,7 @@
 require("dotenv").config();
+require("./db");
+
 const express = require("express");
-const mongoose = require("mongoose");
 const cors = require("cors");
 const multer = require("multer");
 const pdfParse = require("pdf-parse");
@@ -9,6 +10,7 @@ const axios = require("axios");
 const path = require("path");
 
 const authRoutes = require("./routes/auth");
+const Analysis = require("./models/Analysis");
 const auth = require("./middleware/auth");
 
 const app = express();
@@ -17,19 +19,13 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// ✅ DB CONNECT
-mongoose
-  .connect(process.env.MONGO_URI)
-  .then(() => console.log("✅ MongoDB Connected"))
-  .catch((err) => console.log(err));
-
 // ✅ AUTH ROUTES
 app.use("/api/auth", authRoutes);
 
 // ✅ FILE UPLOAD
 const upload = multer({ dest: "uploads/" });
 
-// ✅ ANALYZE ROUTE (FIXED COMPLETELY)
+// ✅ ANALYZE ROUTE (SAVE TO DB)
 app.post("/analyze", auth, upload.single("resume"), async (req, res) => {
   try {
     if (!req.file) {
@@ -41,32 +37,24 @@ app.post("/analyze", auth, upload.single("resume"), async (req, res) => {
 
     const role = req.body.role || "Software Developer";
 
-    // 🔥 PERFECT PROMPT
     const prompt = `
 You are an expert AI Resume Analyzer.
 
 Analyze the resume for the role: "${role}"
 
-Return STRICT JSON ONLY (no text outside JSON):
+Return STRICT JSON ONLY:
 
 {
   "score": number,
   "summary": "short professional summary",
-  "missing_skills": ["skill1", "skill2"],
-  "suggestions": ["suggestion1", "suggestion2"]
+  "missing_skills": ["skill1"],
+  "suggestions": ["suggestion1"]
 }
-
-Rules:
-- Score MUST reflect match with role
-- If role mismatch → give LOW score
-- NEVER return empty fields
-- Always give meaningful suggestions
 
 Resume:
 ${pdfData.text}
 `;
 
-    // 🔥 API CALL
     const response = await axios.post(
       "https://openrouter.ai/api/v1/chat/completions",
       {
@@ -83,9 +71,6 @@ ${pdfData.text}
 
     let aiText = response.data.choices[0].message.content;
 
-    console.log("AI RAW:", aiText); // 🔍 DEBUG
-
-    // 🔥 CLEAN RESPONSE
     aiText = aiText
       .replace(/```json/g, "")
       .replace(/```/g, "")
@@ -95,16 +80,24 @@ ${pdfData.text}
 
     try {
       parsed = JSON.parse(aiText);
-    } catch (err) {
-      console.log("❌ JSON parse failed");
-
+    } catch {
       parsed = {
         score: 40,
         summary: "AI parsing failed",
         missing_skills: ["Could not extract"],
-        suggestions: ["Try again with better resume"],
+        suggestions: ["Try again"],
       };
     }
+
+    // ✅ SAVE TO DATABASE
+    await Analysis.create({
+      userId: req.user.id,
+      role,
+      score: parsed.score,
+      missing_skills: parsed.missing_skills,
+      suggestions: parsed.suggestions,
+      summary: parsed.summary,
+    });
 
     res.json(parsed);
   } catch (err) {
@@ -113,10 +106,23 @@ ${pdfData.text}
   }
 });
 
-// ✅ SERVE FRONTEND (IMPORTANT ORDER)
+// ✅ HISTORY API
+app.get("/api/history", auth, async (req, res) => {
+  try {
+    const data = await Analysis.find({ userId: req.user.id }).sort({
+      createdAt: -1,
+    });
+
+    res.json(data);
+  } catch (err) {
+    res.status(500).send("Error fetching history");
+  }
+});
+
+// ✅ SERVE FRONTEND
 app.use(express.static(path.join(__dirname, "../client/build")));
 
-app.get(/.*/, (req, res) => {
+app.use((req, res) => {
   res.sendFile(path.join(__dirname, "../client/build/index.html"));
 });
 
