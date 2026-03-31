@@ -36,11 +36,17 @@ function App() {
       formData.append("resume", file);
       formData.append("role", role);
 
-      const res = await axios.post("/analyze", formData, {
-        headers: {
-          Authorization: localStorage.getItem("token"),
+      const token = localStorage.getItem("token");
+
+      const res = await axios.post(
+        "https://ai-resume-analyzer-qyi6.onrender.com/analyze",
+        formData,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
         },
-      });
+      );
 
       setData(res.data);
 
